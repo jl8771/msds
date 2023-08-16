@@ -1,0 +1,307 @@
+---
+title: "COVID19 in the United States Report"
+date: "8/3/2023"
+author: "Jacky Luo"
+---
+
+# Introduction
+
+This report will perform analysis to determine the rate of cases of and deaths due to COVID19 in the United States by county.
+The analysis will determine if there is any relationship between county population and county location on COVID19.
+
+# Import Packages and Data
+
+The packages used for this document are listed below, please install
+any missing packages.
+
+- `tidyverse`
+- `lubridate`
+- `ggplot2`
+- `forecast`
+
+The data used for this analysis comes from the Center for Systems Science and Engineering (CSSE) at Johns Hopkins University
+and can be found on their [**github page**](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data).
+
+The specific files used will be the `UID_ISO_FIPS_LookUp_Table.csv` for lookup info, as well as the 
+`time_series_covid19_confirmed_US.csv` and `time_series_covid19_deaths_US.csv` time series datasets.
+
+```{r import-lib-data, echo=TRUE}
+#Import libraries, remove import outputs
+verify_package <- function(package_name) {
+    if (!eval(parse(text=paste("suppressPackageStartupMessages(require(",package_name,"))")))) {
+        cat(package_name, " not detected, installing ", package_name, ".")
+        install.packages(package_name, repos=mirror)
+        library(package_name)
+    }
+}
+
+packages_list = list("tidyverse", "lubridate", "ggplot2", "forecast")
+for(package in packages_list){
+    verify_package(package)
+}
+
+#Load data
+base_url <- 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/'
+filenames <- c("time_series_covid19_confirmed_US.csv", "time_series_covid19_deaths_US.csv")
+urls <- str_c(base_url,filenames)
+us_cases <- read_csv(urls[1], show_col_types = FALSE)
+us_deaths <- read_csv(urls[2], show_col_types = FALSE)
+
+uid_lookup_url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"
+uid <- read_csv(uid_lookup_url, show_col_types = FALSE) %>% select(-c(Lat, Long_, Combined_Key, code3, iso2, iso3, Admin2))
+```
+
+# Clean and Preprocess Data
+
+One of the first steps will be to tidy and reformat data to be of an appropriate
+format to be used for future analysis. In this step, steps will be performed similar
+to the processing steps from the class example.
+
+The data we will use for this analysis will contain only COVID19 data from the United States.
+
+First, the data will be pivoted to create a time series format where the dates are a
+column rather than an individual column for each date. The next step is to change the
+datatype of the `date` column to date rather than chr. Finally, we will select the
+relevant columns for the cases and deaths time series.
+
+For analysis, the cases and deaths time series will be joined to create a multivariate
+time series by county.
+
+The final step will be to rename the columns to keep some consistency. A preview of the data
+can be seen below.
+
+```{r clean-join-data, echo=TRUE}
+us_cases <- us_cases %>%
+    pivot_longer(cols = -(UID:Combined_Key), names_to = "date", values_to = "cases") %>%
+    select(Admin2:cases) %>%
+    mutate(date = mdy(date)) %>%
+    select(-c(Lat, Long_, Country_Region, Combined_Key))
+
+us_deaths <- us_deaths %>%
+    pivot_longer(cols = -(-UID:Population), names_to = "date", values_to = "deaths") %>%
+    select(Admin2:deaths) %>%
+    mutate(date = mdy(date)) %>%
+    select(-c(Lat, Long_, Country_Region, Combined_Key))
+
+us <- us_cases %>% full_join(us_deaths)
+
+us <- us %>%
+    rename(County=Admin2,State=Province_State,Date=date,Cases=cases,Deaths=deaths) %>%
+    select(c(State, County, Population, Date, Cases, Deaths))
+
+us %>% print()
+```
+
+# Analysis and Plotting
+
+## Analysis of County Populations vs Infection and Deaths
+
+First, as the US is a large country with over 3000 counties, 1919 of which are included
+in the data. The investigation into the data begins with determining whether the population
+of a county is related to the number of cases or deaths in the county. The top five most
+populous counties in the data will be plotted against the five least densely populated
+counties. These counties can be seen below.
+
+```{r}
+county_populations <- us %>%
+    group_by(County) %>%
+    summarize(Population=mean(Population)) %>%
+    filter(Population > 0) %>%
+    arrange(desc(Population))
+
+top_bot_counties <- county_populations %>%
+    filter(County %in% c(county_populations$County[1:5], rev(county_populations$County)[1:5]))
+
+top_bot_counties %>% print()
+```
+
+The metrics that will be used are deaths per million and cases per million.
+
+A sample of the data from these counties below:
+
+```{r}
+us_by_county <- us %>%
+    filter(County %in% c(county_populations$County[1:5], rev(county_populations$County)[1:5])) %>%
+    mutate(DeathsPerMil=Deaths/Population*1000000,CasesPerMil=Cases/Population*1000000)
+us_by_county %>% print()
+```
+
+The first plot will be of cases per million by date, separated by county.
+
+```{r plot-1, echo=FALSE}
+us_by_county %>% ggplot(aes(x=Date,y=CasesPerMil,color=County)) + 
+    #geom_point() +
+    geom_line() +
+    scale_y_log10() +
+    theme(legend.position = "bottom")
+```
+
+The first major observation is that Kalawao County had very few or no cases. As the
+population is only 86 and located fairly remotely in Hawaii, this could make sense.
+However, there is likely some erroneous data as there appears to be a spike in late
+2020 which remains for a few days then returns to close to 0.
+
+The second observation of note from this plot is that the less densely populated
+counties appear to be slower to get their first cases by months compared to the large,
+heavily populated counties. The smaller counties also appear to have sharper, rapid climbs
+in cases and longer periods of no activity as individual reported cases in these smaller
+counties will have significantly more impact.
+
+Besides Loving County, Texas, all nine other counties appear to have similar number of
+cases per million as they are all within an order of magnitude when the data ends
+in early 2023. Loving County appears to be an outlier as a smaller county as it has approximately
+9 months until the first case is reported, but ends with the highest cases per million.
+
+```{r plot-2, echo=FALSE}
+us_by_county %>% ggplot(aes(x=Date,y=DeathsPerMil,color=County)) + 
+    #geom_point() +
+    geom_line() +
+    scale_y_log10() +
+    theme(legend.position = "bottom")
+```
+
+Similar to the cases plot, Kalawao County, Hawaii appears to have no interaction
+with COVID19.
+
+Also similar to the cases plot, the smaller counties have a delay before reporting any
+deaths but then reach a steady state where they closely match the death rate of larger
+counties.
+
+## Analysis of County Geography vs Infection and Deaths
+
+The next plots will attempt to determine whether regionality of the United States has
+an impact on COVID19 transmission and deaths. For this, two cities on the east coast are
+selected along with two cities on the west coast, and one from the center of the continental
+United States. It was also decided for each group of two cities to select one from northern
+city and one southern city.
+
+Large, metropolitan cities were selected as they reduce the variance and outliers seen
+in the smaller counties and give more data points to work with. In some cases, smaller
+counties than the largest county of a metropolitan area were selected due to an
+unknown bug causing an error in the plots.
+
+The cities selected are as follows:
+
+1. Philadelphia, PA (Philadelphia County)
+1. Miami, FL (Miami-Dade County)
+1. Minneapolis, MN (Hennepin County)
+1. Fort Worth, TX (Tarrant County)
+1. Seattle, WA (Snohomish County)
+1. Los Angeles, CA (Los Angeles County)
+
+A preview of the data can be seen below:
+
+```{r}
+geo_counties <- c("Philadelphia", "Miami-Dade", "Hennepin", "Tarrant", "Snohomish", "Los Angeles")
+
+us_by_loc <- us %>%
+    filter(County %in% geo_counties) %>%
+    mutate(DeathsPerMil=Deaths/Population*1000000,CasesPerMil=Cases/Population*1000000)
+us_by_loc %>% print()
+```
+
+The first plot will be of cases per million by date, separated by county.
+
+```{r plot-3, echo=FALSE}
+us_by_loc %>% ggplot(aes(x=Date,y=CasesPerMil,color=County)) + 
+    #geom_point() +
+    geom_line() +
+    scale_y_log10() +
+    theme(legend.position = "bottom")
+```
+
+The plot appears to show another anomaly as the data for Tarrant County, Texas shows
+the number cases decreasing in the early months of 2020 before returning to normal.
+
+Miami-Dade appears to be the county with the highest rate of transmission while
+Snohomish County appears to be have the lowest. This could be due to selection of
+county as Snohomish County is not the most populous county for Seattle as King County, WA
+caused an error in the plot.
+
+There does not appear to be any relation between regionality and COVID19 transmission.
+
+```{r plot-4, echo=FALSE}
+us_by_loc %>% ggplot(aes(x=Date,y=DeathsPerMil,color=County)) + 
+    #geom_point() +
+    geom_line() +
+    scale_y_log10() +
+    theme(legend.position = "bottom")
+```
+
+The spike and then dip in deaths for Tarrant County does not appear for deaths as it
+did with cases, which further supports erroneous data.
+
+The same counties with the highest and lowest rates of cases per million are the same counties for
+deaths per million. However, the large early spike for Los Angeles county does not appear on the
+deaths plot as it did on the cases plot.
+
+Other than this, there is no distinct difference in deaths per million by region.
+
+# Time Series Modelling and Forecasting
+
+As the data is time series data, univariate time series forecasting will be performed
+on the total number of cases across the United States. This begins by grouping all counties
+by date to form a daily time series.
+
+```{r}
+tsdata <- us %>%
+    group_by(Date) %>%
+    summarize(Cases=sum(Cases)) %>%
+    filter(!is.na(Cases))
+
+tsdata %>% print()
+```
+
+Next, our data will be converted into a time series object to be used by the model.
+
+```{r}
+covid_ts <- ts(tsdata$Cases, frequency=365, start=c(2020,22))
+head(covid_ts, 10) %>% print()
+```
+
+Next, the time series will be decomposed as analysis to view the trend, seasonalities
+and residuals of the multiplicative time series.
+
+```{r, echo=FALSE}
+ddata <- decompose(covid_ts, "multiplicative")
+plot(ddata)
+```
+
+A model can then be created. For this analysis, an auto ARIMA model will be used from
+the `forecast` package.
+
+```{r}
+model <- auto.arima(tsdata$Cases)
+print(model)
+```
+
+An ARIMA(5,2,2) model is created. This model can then be used to predict future cases
+from the data supplied. 6 months (30-day periods) of forecasting will be performed.
+
+```{r}
+month_forecast <- forecast(model, level=c(95), h=30*6)
+plot(month_forecast)
+```
+
+The plot shows a mostly steady increase in cases.
+
+Performing a Ljung-Box test on the residuals of the model will give a p-value to determine
+model performance.
+
+```{r}
+Box.test(model$resid, lag=15, type="Ljung-Box")
+```
+
+As the p-value is very close to zero, the model can be considered accurate for this application.
+
+# Conclusion
+From the analysis performed in this report, population size of a county has an effect on
+the delay of COVID19 infections and deaths where smaller counties will have a larger time
+before any cases or deaths are reported.
+
+The report also finds there is no regional bias in COVID19 infections and deaths as the
+rate of cases and deaths per million are very similar between cities all over the continental
+United States.
+
+Finally, an ARIMA model was built to forecast COVID19 cases across the United States
+with a high degree of accuracy according to the Ljung-Box test.

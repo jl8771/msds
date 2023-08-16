@@ -1,0 +1,560 @@
+---
+title: "NYPD Shooting Incident Data Report Victim/Perpetrator Relationship"
+date: "8/3/2023"
+author: "Jacky Luo"
+---
+
+# Topic
+This document will primarily be an analysis of the demographics of victims and perpetrator of historical shooting incidents within
+the jurisdiction of the NYPD.
+
+The data can be found [**here**.](https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv)
+
+# Import Data and Libraries
+**Edit the block below** to select your mirror to download packages from (if required).
+```{r set-internal-settings, echo=FALSE}
+#!!! IMPORTANT STEP!!!
+#SELECT ONE OF THE R MIRRORS FROM THE LIST HERE AND PASTE BELOW:
+#https://cran.r-project.org/mirrors.html
+mirror <- "CRAN-MIRROR-URL-HERE"
+if (mirror == "CRAN-MIRROR-URL-HERE") {
+    print("No mirror selected, using default mirror.")
+    mirror <- "http://lib.stat.cmu.edu/R/CRAN/"
+}
+cat("Selected Mirror: ", mirror)
+```
+
+If you would like to manually install the required packages, here is a list:
+
+1. `tidyverse`
+1. `reshape`
+1. `fastDummies`
+1. `xgboost`
+1. `caret`
+1. `MLmetrics`
+1. `naniar`
+1. `ggplot2`
+1. `purrr`
+1. `lubridate`
+
+If not, the packages will be installed by the code below.
+
+```{r import-packages, echo=FALSE}
+#Import libraries, remove import outputs
+verify_package <- function(package_name) {
+    if (!eval(parse(text=paste("suppressPackageStartupMessages(require(",package_name,"))")))) {
+        cat(package_name, " not detected, installing ", package_name, ".")
+        install.packages(package_name, repos=mirror)
+        library(package_name)
+    }
+}
+
+packages_list = list("tidyverse", "reshape", "fastDummies", "xgboost", "caret", "MLmetrics", "naniar", "ggplot2", "purrr", "lubridate")
+for(package in packages_list){
+    verify_package(package)
+}
+#Load data into df
+url <- 'https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD'
+df <- read_csv(url, show_col_types = FALSE)
+```
+```{r import-complete, echo=FALSE}
+#Print to confirm all packages and data loaded
+print("Data and Packages Imported Successfully.")
+```
+# Investigate Data & Data Quality
+### View Columns
+```{r col-names, echo=TRUE}
+#View column names
+names(df) %>% print()
+```
+
+The first 9 columns (`INCIDENT_KEY`, `OCCUR_DATE`, `OCCUR_TIME`, `BORO`, 
+`LOC_OF_OCCUR_DESC`, `PRECINCT`, `JURISDICTION_CODE`, `LOC_CLASSFCTN_DESC`,
+`LOCATION_DESC`) are related to the time and general location of the incident.
+This includes jurisdictions which can be assumed to be administrative details for the police.
+
+There appears to be a boolean flag relating to statistical murder 
+(`STATISTICAL_MURDER_FLAG`) which needs to be further investigated.
+
+There are then three columns which describe the perpetrator, followed by 
+three columns which describe the victim of the incident. The descriptors
+are age group, race and sex for both perpetrator and victim.
+
+The final five columns are related to the precise location of the incident.
+They include a X/Y coordinate system, a latitude, a longitude and a combined
+latitude/longitude pair to form a point.
+
+### Preview Data Head
+```{r print-head, echo=TRUE}
+#View first five rows with all columns
+head(df) %>% print(width=Inf)
+```
+
+Of the first five rows of the data the columns `LOC_OF_OCCUR_DESC`,
+`LOC_CLASSFCTN_DESC`, `LOCATION_DESC` all appear to be missing. 
+These columns should be checked for number of total missing values.
+The `PERP_AGE_GROUP`, `PERP_SEX` and `PERP_RACE` columns are missing four of
+five initial values and could be due to an unsolved incident.
+
+### View Summary of Data
+```{r view-summary, echo=TRUE}
+#View descriptive statistics for all columns
+summary(df) %>% print()
+```
+
+As the ranges for longitude and latitude are less than half a degree of each, the
+`Latitude`, `Longitude` and `Lon_Lat` columns can be dropped. There is also somewhat
+redundant data with a much higher level of accuracy with the `X_COORD_CD` and
+`Y_COORD_CD` columns.
+
+### View Missing Data
+
+```{r view-len, echo=TRUE}
+#Save number of rows for future reference
+df_size <- nrow(df)
+#Print number of rows
+df_size %>% print()
+```
+
+We expect to have $27,312$ rows of data. With $21$ columns, we expect to have $573552$ total
+values.
+
+```{r view-missing-total, echo=TRUE}
+sum(is.na(df)) %>% print()
+```
+
+We can see $94165$ of the values are missing, or $16.4\%$ of the data. We can further investigate
+by looking at the columns with a high number of missing values in the head of the data.
+
+Filtering for `<NA>` values for `LOC_OF_OCCUR_DESC` gives:
+```{r view-missing-1, echo=TRUE}
+#Filter by only <NA> values, print the number of <NA> values in LOC_OF_OCCUR_DESC
+new_df_size <- df %>% filter(is.na(LOC_OF_OCCUR_DESC)) %>% nrow()
+new_df_size %>% print()
+#Print number of <NA> values as percentage
+print(new_df_size / df_size)
+```
+
+This means $93.7\%$ of the values in `LOC_OF_OCCUR_DESC` are missing and the
+column can be safely dropped as there is very little information contained.
+
+Repeating this process for the other columns with missing values:
+
+`LOC_CLASSFCTN_DESC`:
+```{r view-missing-2, echo=FALSE}
+new_df_size <- df %>% filter(is.na(LOC_CLASSFCTN_DESC)) %>% nrow()
+new_df_size %>% print()
+print(new_df_size / df_size)
+```
+It appears this column has the same missing values as `LOC_OF_OCCUR_DESC`
+
+`LOCATION_DESC`:
+```{r view-missing-3, echo=FALSE}
+new_df_size <- df %>% filter(is.na(LOCATION_DESC)) %>% nrow()
+new_df_size %>% print()
+print(new_df_size / df_size)
+```
+The `LOCATION_DESC` column is still mostly missing values at over $50\%$, but can
+be included in the analysis.
+
+`PERP_AGE_GROUP`:
+```{r view-missing-4, echo=FALSE}
+new_df_size <- df %>% filter(is.na(PERP_AGE_GROUP)) %>% nrow()
+new_df_size %>% print()
+print(new_df_size / df_size)
+```
+
+`PERP_SEX`:
+```{r view-missing-5, echo=FALSE}
+new_df_size <- df %>% filter(is.na(PERP_SEX)) %>% nrow()
+new_df_size %>% print()
+print(new_df_size / df_size)
+```
+
+`PERP_RACE`:
+```{r view-missing-6, echo=FALSE}
+new_df_size <- df %>% filter(is.na(PERP_RACE)) %>% nrow()
+new_df_size %>% print()
+print(new_df_size / df_size)
+```
+
+Around $\frac{1}{3}$ of perpetrator data is missing, although more age group
+data is missing than sex and race data.
+
+Therefore, after this analysis, the `Latitude`, `Longitude`, `Lon_Lat`, 
+`LOC_OF_OCCUR_DESC`, `LOC_CLASSFCTN_DESC` columns can be excluded.
+
+```{r filter-df, echo=TRUE}
+#Remove selected columns, print head with all columns
+filtered_df <- df %>% select(-c(Latitude, Longitude, Lon_Lat, LOC_OF_OCCUR_DESC, LOC_CLASSFCTN_DESC))
+head(filtered_df) %>% print(width=Inf)
+```
+
+# Analysis
+### Date Time of Incident Analysis
+
+Plot the dates of shooting incidents. However, first the `OCCUR_DATE` must be converted to datetime format.
+```{r convert-dt, echo=TRUE}
+filtered_df <- filtered_df %>% mutate(OCCUR_DATE=mdy(OCCUR_DATE))
+filtered_df <- filtered_df %>% mutate(OCCUR_YEAR=year(OCCUR_DATE), OCCUR_MONTH=month(OCCUR_DATE))
+```
+
+Now the real plotting can begin.
+
+```{r plot-dt1, echo=FALSE}
+#Plot OCCUR_DATE
+filtered_df %>% ggplot(aes(x=OCCUR_YEAR, y=after_stat(count))) + geom_bar()
+```
+
+From the plot, it appears as if the number of incidents steadily decreases from 2006 through 2016. For a period between 2016 and 2019 it appears
+as if the number of incidents remains mostly constant around $1000$ cases per year. However, in 2020 the number of incidents increases to 2006 levels
+at nearly $2000$ incidents and has remained around that number since.
+
+```{r plot-dt2, echo=FALSE}
+#Plot OCCUR_DATE
+filtered_df %>% ggplot(aes(x=OCCUR_MONTH, y=after_stat(count))) + geom_bar()
+```
+
+There appears to be the summer months including late spring and early fall have the highest number of incidents, with the fewest number of incidents happening
+in the month of February. The month with the highest number of incidents is July.
+
+```{r plot-dt3, echo=FALSE}
+#Plot OCCUR_TIME
+filtered_df %>% ggplot(aes(x=OCCUR_TIME, y=after_stat(count))) + geom_bar()
+```
+
+From this plot, it can be determined that the majority of incidents occur during nighttime, between midnight and 5am and between 5pm and midnight.
+
+### Location of Incident Analysis
+
+Plot the location of shooting incidents using `X_COORD_CD` and `Y_COORD_CD`
+
+```{r plot-xy, echo=FALSE}
+#Plot X_COORD_CD vs Y_COORD_CD as points, no map overlay
+filtered_df %>% ggplot() + geom_point(aes(X_COORD_CD, Y_COORD_CD))
+```
+
+It seems these incidents largely occur in a central area with smaller concentrations.
+
+```{r plot-precinct, echo=FALSE}
+#Plot number of incidents as histogram by precinct number
+filtered_df %>% select(PRECINCT) %>% ggplot(aes(x=PRECINCT, y=after_stat(count))) + geom_bar()
+```
+
+It appears as if some precincts between $60$ and $90$ have the highest frequency of incidents.
+
+Use aggregation to find the top 10 precincts with the most incidents.
+
+```{r agg-precinct, echo=TRUE}
+filtered_df %>%
+    #Group by precint
+    group_by(PRECINCT) %>%
+    #Get number of incidents per precinct
+    summarize(Num_Incidents=n()) %>%
+    #Sort by number of incidents descending
+    arrange(desc(Num_Incidents)) %>%
+    #As dataframe, top 10 rows
+    as.data.frame() %>%
+    head(10)
+```
+
+The 75th, 73rd and 67th precincts have the most incidents. Further analysis should be done
+by finding the locations of these precincts and comparing it to an overlayed map with the
+coordinates from the scatter plot above.
+
+### Victim/Perpetrator Age Group Frequency Analysis
+Plot the frequency of perpetrator sex, race and age group and victim sex,race and age group to determine
+
+#### Perpetrator Age Group
+
+```{r plot-perp-age, echo=FALSE}
+#Select only perp columns and create bar plot
+filtered_df %>% select(PERP_AGE_GROUP, PERP_SEX, PERP_RACE) %>% ggplot(aes(x=PERP_AGE_GROUP)) + geom_bar()
+```
+
+A large number of ages are `UNKNOWN`, `NA` or `(null)`. However, excluding these
+missing or unknown values, the most common age groups for perpetrators are $18-24$ and $25-44$.
+This makes sense as this range makes up the majority of the population.
+
+The third largest group of perpetrators are juveniles, followed by the $45-64$ age group.
+
+There also appears to be incorrectly input data with values of $1020$, $224$ and $940$.
+
+#### Victim Age Group
+
+```{r plot-vic-age, echo=FALSE}
+#Select only vic columns and create bar plot
+filtered_df %>% select(VIC_AGE_GROUP, VIC_SEX, VIC_RACE) %>% ggplot(aes(x=VIC_AGE_GROUP)) + geom_bar()
+```
+
+Although the distribution of ages for victims is similar to the distribution for 
+perpetrators, there are more victims in the $25-44$ age group than the $18-24$ age group
+whereas the reverse is true for perpetrators. This means the average age of the victim
+is higher than the average age of the perpetrator of these incidents.
+
+There is also only one incorrectly input label of $1022$, and only one version of missing data
+of `UNKNOWN` compared to three versions for perpetrators.
+
+Further investigation should be done to compare age data from the incident dataset to the
+true age census data for the city of New York to see if the distribution of perpetrators and
+victims reflects the true age distribution of the population.
+
+#### Victim Sex
+
+```{r plot-vic-sex, echo=FALSE}
+#Select only vic columns and create bar plot
+filtered_df %>% select(VIC_AGE_GROUP, VIC_SEX, VIC_RACE) %>% ggplot(aes(x=VIC_SEX)) + geom_bar()
+```
+
+There is an extreme class imbalance between male victims and female victims in an approximate
+$10:1$ ratio. There also very few `U` cases for unknown.
+
+#### Victim race
+```{r plot-vic-race, echo=FALSE}
+#Select only vic columns and create bar plot
+filtered_df %>% select(VIC_AGE_GROUP, VIC_SEX, VIC_RACE) %>% ggplot(aes(x=VIC_RACE)) + geom_bar() +
+    theme(axis.text.x = element_text(angle=90))
+```
+
+There is also an extreme class imbalance in the race of the victim.
+
+There are very few cases for `UNKNOWN` race which means those examples can be safely removed.
+
+# Model
+
+We will build a model using xgboost to attempt to determine perpetrator age group from the complete demographics
+of the victim.
+
+First, the categorical data in the age groups must be replaced with numerical data. We can do this by first
+cleaning up the three versions of unknown, as well as mislabeled data that is not in a valid age group with `NA`.
+For this we will use `naniar`.
+
+Also in this step, we can drop the `NA` values to further clean the data. This will leave
+us with only examples where
+
+```{r prepare-traintest, echo=TRUE}
+model_df <- filtered_df %>%
+    #Select target category and predictor categories (All demographics)
+    select(c(PERP_AGE_GROUP,VIC_AGE_GROUP,VIC_SEX,VIC_RACE)) %>%
+    #Replace all versions of incorrect entries, unknown values and missing values with <NA>
+    replace_with_na(replace=list(
+        PERP_AGE_GROUP=c("1020","224","940","UNKNOWN","(null)"),
+        VIC_AGE_GROUP=c("1022","UNKNOWN"),
+        VIC_SEX=c("U"),
+        VIC_RACE=c("UNKNOWN")
+    )) %>%
+    #Remove rows with <NA> values
+    filter(!is.na(VIC_AGE_GROUP),!is.na(VIC_SEX),!is.na(VIC_RACE),!is.na(PERP_AGE_GROUP))
+#Print column names, unique values to ensure replacement successful
+names(model_df) %>% print()
+unique(model_df$PERP_AGE_GROUP) %>% print()
+unique(model_df$VIC_AGE_GROUP) %>% print()
+unique(model_df$VIC_RACE) %>% print()
+#Print number of rows to view sample data size
+nrow(model_df) %>% print()
+#Ensure no <NA> values remain after replacement
+model_df %>% summarise(NA_per_row = sum(is.na(.)))
+```
+
+This leaves us with a dataset of $14093$ (reduced from the original $27312$) with four
+columns or features (`PERP_AGE_GROUP`, `VIC_AGE_GROUP`, `VIC_SEX`, `VIC_RACE`). This can further
+be split 70/30 into a training and test set. 
+
+However, because all the values are currently in text format and are categorical variables, these must
+be converted to numerical. To do this, each column will be converted to dummies.
+
+First convert the target feature `PERP_AGE_GROUP` to numerical with ordinal encoding:
+
+```{r convertx-traintest, echo=TRUE}
+#Function to ordinally encode the age group feature row-wise
+ordinal_encode <- function(x) {
+    if (x == "<18") {
+        result <- "Zero"
+    } else if (x == "18-24") {
+        result <- "One"
+    } else if (x == "25-44") {
+        result <- "Two"
+    } else if (x == "45-64") {
+        result <- "Three"
+    } else if (x == "65+") {
+        result <- "Four"
+    }
+    return(first(result))
+}
+
+#Apply ordinal encoding across target feature perp age group then convert to factor
+model_df <- model_df %>% mutate(PERP_AGE_GROUP=pmap(across(PERP_AGE_GROUP),
+    ~ ordinal_encode(..1)))
+model_df$PERP_AGE_GROUP <- sapply(model_df$PERP_AGE_GROUP,first)
+model_df$PERP_AGE_GROUP <- factor(model_df$PERP_AGE_GROUP)
+#Ensure ordinal encoding complete
+unique(model_df$PERP_AGE_GROUP) %>% print()
+```
+
+Next convert to dummies the remaining features using the `fastDummies` library:
+
+```{r converty-traintest, echo=TRUE}
+#Use dummy encoding to convert categorical features to binary features usable by the model
+model_df <- model_df %>% dummy_cols(
+    select_columns=c("VIC_AGE_GROUP","VIC_SEX","VIC_RACE"),remove_selected_columns = TRUE)
+names(model_df) %>% print()
+```
+
+Finally, we can split this dataset into a training and test dataset with a 70/30 split. Then X and y
+will be split into a X,y set where X is `PERP_AGE_GROUP` and y is the dummies for 
+`VIC_AGE_GROUP`, `VIC_SEX`, `VIC_RACE`. This will form four sets: `X_test`, `X_train`, `y_test` and `y_train`.
+
+```{r split-traintest, echo=TRUE}
+#Fix seed to ensure reproducability
+set.seed(71)
+#Split the data into 70% training data 30% test data
+sample <- createDataPartition(model_df$PERP_AGE_GROUP, p=0.7, list=FALSE)
+
+train <- model_df[sample,]
+test <- model_df[-sample,]
+#Further split into X and y for training features and target features
+y_train <- train %>% select(c(PERP_AGE_GROUP)) %>%
+    pull(PERP_AGE_GROUP)
+y_test <- test %>% select(c(PERP_AGE_GROUP)) %>%
+    pull(PERP_AGE_GROUP)
+X_train <- train %>% select(-c(PERP_AGE_GROUP))
+X_test <- test %>% select(-c(PERP_AGE_GROUP))
+#Save and print the size of the training and test sets to ensure proper split
+train_size <- nrow(train)
+test_size <- nrow(test)
+
+cat("Train Size: ", train_size , " Test Size: ", test_size)
+```
+
+The next step is to perform grid search as hyperparameter tuning to find the optimal values of `max_depth` and `nrounds`
+in our model. We will use 5-fold cross validation, minimizing logloss as our performance metric.
+
+```{r grid-search, echo=TRUE}
+#Use caret train to perform 5-fold cross validation grid search on max_depth and nrounds
+train_control <- trainControl(method="cv", number=5, search="grid", classProbs=TRUE, 
+                            summaryFunction=multiClassSummary, savePredictions="all")
+tune_grid <- expand.grid(max_depth = c(3,5,7), nrounds = (1:10)*25, eta=0.3, gamma=0, 
+                        colsample_bytree=0.6, min_child_weight=1, subsample=1)
+model <- train(x=X_train, y=y_train, method="xgbTree", metric="logLoss", maximize=FALSE,
+                    trControl=train_control, tuneGrid=tune_grid, verbosity=0)
+#Look at the tuned hyperparameters and results w/ loss and acc
+model$results %>% select(max_depth, nrounds, logLoss, Accuracy)#Mean_Sensitivity, Mean_Specificity, Mean_Precision
+```
+
+Now the model can be created using a softmax objective for multiclass classification, using the optimal hyperparameters.
+
+```{r train-model, echo=TRUE}
+#Because the train method provides the best model trained, we will just display the hyperparameters
+model$finalModel$tuneValue %>% print()
+```
+
+Make predictions using the model and compute the confusion matrix:
+
+```{r pred, echo=TRUE}
+#Make predictions using the model
+y_pred <- predict(model, X_test)
+#Decode from ordinal
+decode <- function(x) {
+    if (x == "Zero") {
+        result <- 0
+    } else if (x == "One") {
+        result <- 1
+    } else if (x == "Two") {
+        result <- 2
+    } else if (x == "Three") {
+        result <- 3
+    } else if (x == "Four") {
+        result <- 4
+    }
+    return(result)
+}
+y_pred <- sapply(y_pred, decode)
+y_test <- sapply(y_test, decode)
+#Create confusion matrix from the predictions compared to known test values
+confusion_matrix <- table(y_pred, y_test) %>% melt()
+#Print the confusion matrix
+confusion_matrix %>% print()
+```
+
+Plot the confusion matrix:
+
+```{r plot-cm, echo=FALSE}
+#Plot the confusion matrix as a heatmap
+confusion_matrix %>%
+    ggplot(aes(x=y_pred,y=y_test,fill=value)) +
+    geom_tile(color="#000000") +
+    geom_text(aes(label=value), color="#FFFFFF", size=4) +
+    coord_fixed()
+```
+
+Interestingly, the model does not seem to predict class 0, class 3, or class 4. These classes map to
+the age groups $<18$, $45-64$ and $65+$ respectively. This could be due to the low amount of
+training examples in these classes and should be investigated further.
+
+However, it seems to have a high degree of accuracy classifying these smaller age groups, while it struggles
+to classify the two large groups and often confuses them with each other.
+
+### Accuracy
+
+Accuracy can be calculated by the number of correct predictions (the diagonal) divided by the number of total predictions.
+
+$$=\frac{TP}{TP+TN+FP+FN}=\frac{2273}{4227}$$
+
+Where $TP$ is the number of true positives, $TN$ is the number of true negatives, $FP$ is the number of false positives and $FN$ is the number of false negatives.
+
+This results in an accuracy of $53.8\%$.
+
+### Precision
+
+Precision is a metric that measures how many of the positive predicted samples are true positives. This is a good metric for when the cost of a false positive
+prediction is high.
+
+Precision for each class can be calculated by taking the number of correct predictions divided by the sum of number of predictions for that class.
+In other words, the number of correct predictions for the given class divided by the sum of all other values in that row of the confusion matrix.
+
+As an example, the precision for class 1 is calculated below.
+
+$$=\frac{TP_{1}}{TP_{1}+FP_{1}}=\frac{1098}{8+1098+752+1+0}$$
+
+This results in a precision for class 1 of $0.59$.
+
+### Recall
+
+Recall is a metric that measures how many of the positive predicted samples are labelled positive by the model. This is a good metric for when the cost of a
+false negative is prediction is high.
+
+Recall for each can be calculated by taking the number of correct predictions divided by the sum of the number of true positive predictions for that class.
+In other words, the number of correct predictions for the given class divided by the sum of of all other values in that column of the confusion matrix.
+
+$$=\frac{TP_{1}}{TP_{1}+FN_{1}}=\frac{1098}{1+27+526+1098+329}$$
+
+This results in a recall for class 1 of $0.55$.
+
+### Per Class Results
+
+The results per class can be found in the table below.
+
+|Class|n True|n Predicted|Accuracy|Precision|Recall|F1|
+|-----|------|-----------|--------|---------|------|--|
+|0|476|10|88.55%|0.10|0.0021|0.0041|
+|1|1859|1981|61.11%|0.55|0.59|0.57|
+|2|1692|2222|62.53%|0.52|0.69|0.60|
+|3|182|10|95.74%|0.60|0.033|0.063|
+|4|18|4|99.62%|0.75|0.17|0.27|
+
+# Conclusion
+In conclusion, there appears to be some correlation between victim and perpetrator demographics in historical NYPD shooting incidents,
+but only in the cases where the perpetrator is in between the ages of $18$ and $65$ as the model poorly performs on juveniles and senior citizens.
+
+This performance could likely be increased by performing better data sampling as there is a heavily imbalanced dataset. The most simple
+solution would be oversampling the minority classes by resampling cases in the $<18$ and $65+$ age groups. Other solutions include more advanced
+techniques such as SMOTE or ADASYN.
+
+# Bias
+One major source of bias is the imbalanced dataset of ages and demographics previously mentioned. Due to the very low number
+of samples of some age groups, and the overwhelming imbalance of male victims to female victims, as well as racial bias, the
+dataset will be biased towards the majority class. This will further lead to bias towards the majority class in the model.
+
+As another source of bias, all of the data comes from a single source. As the NYPD is the 
+sole source of the data and is also the organization in charge of reporting the data,
+there could be biases or inconsitencies with the reporting of this data.

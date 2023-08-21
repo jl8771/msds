@@ -235,7 +235,7 @@ Ordinal Encoding
 
 Dummy/One Hot Encoding
 
-![](df.png) :arrow_right: ![](encode_onehot.png)
+![](df.png) ![](encode_onehot.png)
 
 ---
 

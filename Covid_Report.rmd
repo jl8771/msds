@@ -102,7 +102,7 @@ of a county is related to the number of cases or deaths in the county. The top f
 populous counties in the data will be plotted against the five least densely populated
 counties. These counties can be seen below.
 
-```{r}
+```{r prep_filter_data1, echo=TRUE}
 county_populations <- us %>%
     group_by(County) %>%
     summarize(Population=mean(Population)) %>%
@@ -119,7 +119,7 @@ The metrics that will be used are deaths per million and cases per million.
 
 A sample of the data from these counties below:
 
-```{r}
+```{r sample_data1, echo=TRUE}
 us_by_county <- us %>%
     filter(County %in% c(county_populations$County[1:5], rev(county_populations$County)[1:5])) %>%
     mutate(DeathsPerMil=Deaths/Population*1000000,CasesPerMil=Cases/Population*1000000)
@@ -191,7 +191,7 @@ The cities selected are as follows:
 
 A preview of the data can be seen below:
 
-```{r}
+```{r prep_filter_data2}
 geo_counties <- c("Philadelphia", "Miami-Dade", "Hennepin", "Tarrant", "Snohomish", "Los Angeles")
 
 us_by_loc <- us %>%
@@ -243,7 +243,7 @@ As the data is time series data, univariate time series forecasting will be perf
 on the total number of cases across the United States. This begins by grouping all counties
 by date to form a daily time series.
 
-```{r}
+```{r prep_ts, echo=TRUE}
 tsdata <- us %>%
     group_by(Date) %>%
     summarize(Cases=sum(Cases)) %>%
@@ -254,7 +254,7 @@ tsdata %>% print()
 
 Next, our data will be converted into a time series object to be used by the model.
 
-```{r}
+```{r convert_ts, echo=TRUE}
 covid_ts <- ts(tsdata$Cases, frequency=365, start=c(2020,22))
 head(covid_ts, 10) %>% print()
 ```
@@ -262,7 +262,7 @@ head(covid_ts, 10) %>% print()
 Next, the time series will be decomposed as analysis to view the trend, seasonalities
 and residuals of the multiplicative time series.
 
-```{r, echo=FALSE}
+```{r plot_ts, echo=FALSE}
 ddata <- decompose(covid_ts, "multiplicative")
 plot(ddata)
 ```
@@ -270,7 +270,7 @@ plot(ddata)
 A model can then be created. For this analysis, an auto ARIMA model will be used from
 the `forecast` package.
 
-```{r}
+```{r create_model, echo=TRUE}
 model <- auto.arima(tsdata$Cases)
 print(model)
 ```
@@ -278,7 +278,7 @@ print(model)
 An ARIMA(5,2,2) model is created. This model can then be used to predict future cases
 from the data supplied. 6 months (30-day periods) of forecasting will be performed.
 
-```{r}
+```{r plot_forecast, echo=FALSE}
 month_forecast <- forecast(model, level=c(95), h=30*6)
 plot(month_forecast)
 ```
@@ -288,11 +288,23 @@ The plot shows a mostly steady increase in cases.
 Performing a Ljung-Box test on the residuals of the model will give a p-value to determine
 model performance.
 
-```{r}
+```{r ljung-box, echo=TRUE}
 Box.test(model$resid, lag=15, type="Ljung-Box")
 ```
 
 As the p-value is very close to zero, the model can be considered accurate for this application.
+
+# Bias
+
+Sources of bias:
+
+It is possible that there are positive cases of COVID19 that are not reported. I have personal knowledge of friends and family who tested positive
+but did not inform others which could mean unreported cases.
+
+COVID19 deaths could also be undertracked as COVID19 complications could result in other conditions that cause death, and then is not reported as
+COVID19 causing the death.
+
+There are potential other sources of bias in the data, as well as personal bias in the analysis.
 
 # Conclusion
 From the analysis performed in this report, population size of a county has an effect on

@@ -1,0 +1,111 @@
+Card_Manufacturer,Silicon_Manufacturer,Model,Series,Filename,Annotation_Status
+Nvidia,Nvidia,680,Kepler,"680_founders",Test
+Nvidia,Nvidia,1070,Pascal,"1070_founders",Front
+Nvidia,Nvidia,Titan,Pascal,"titanx_reference",Front
+Nvidia,Nvidia,2060,Turing,"2060_founders",Front
+Nvidia,Nvidia,3080Ti,Ampere,"3080ti_founders",Front
+Nvidia,Nvidia,A2000,Ampere,"a2000_reference",Test
+Nvidia,Nvidia,4060Ti,Ada Lovelace,"4060ti_founders",Front
+Nvidia,Nvidia,4080,Ada Lovelace,"4080_founders",Front
+Nvidia,Nvidia,4090,Ada Lovelace,"4090_founders",Front
+AMD,AMD,480,Arctic Islands,"480_reference",Front
+AMD,AMD,Vega56,Vega,"vega56_reference",Front
+AMD,AMD,Vega64,Vega,"vega64_reference",Front
+AMD,AMD,Radeon VII,Vega II,"radeonvii_reference",Front
+AMD,AMD,5500,RDNA1,"5500_reference",Front
+AMD,AMD,5700XT,RDNA1,"5700xt_reference",Front
+AMD,AMD,6700XT,RDNA2,"6700xt_reference",Front
+AMD,AMD,6900XT,RDNA2,"6900xt_reference",Front
+AMD,AMD,7600,RDNA3,"7600_reference",Front
+AMD,AMD,7900XT,RDNA3,"7900xt_reference",Front
+AMD,AMD,7900XTX,RDNA3,"7900xtx_reference",Front
+Intel,Intel,A380,Alchemist,"a380_reference",Front
+Intel,Intel,A750,Alchemist,"a750_reference",Front
+Intel,Intel,A770,Alchemist,"a770_reference",Front
+AsRock,AMD,590,Polaris,"asrock_590_phantomgamingx",Front
+AsRock,AMD,5600XT,RDNA1,"asrock_5600xt_phantomgaming",Front
+AsRock,AMD,6600XT,RDNA2,"asrock_6600xt_phantom",Front
+AsRock,AMD,6700XT,RDNA2,"asrock_6700xt_phantomgaming",Front
+AsRock,AMD,6900XT,RDNA2,"asrock_6900xt_ocformula",Front
+AsRock,AMD,6950XT,RDNA2,"asrock_6950xt_ocformula",Front
+AsRock,AMD,7600,RDNA3,"asrock_7600_phantomgaming",Front
+AsRock,AMD,7900XTX,RDNA3,"asrock_7900xtx_taichi",Front
+ASUS,Nvidia,2070Super,Turing,"asus_2070S_strix",Front
+ASUS,Nvidia,3080,Ampere,"asus_3080_strixoc12gb",Front
+ASUS,Nvidia,3090Ti,Ampere,"asus_3090ti_strix",Front
+ASUS,Nvidia,4070,Ada Lovelace,"asus_4070_tuf",Front
+ASUS,Nvidia,4080,Ada Lovelace,"asus_4080_noctua",Front
+ASUS,Nvidia,4080,Ada Lovelace,"asus_4080_strix",Front
+ASUS,Nvidia,4090,Ada Lovelace,"asus_4090_strix",Test
+ASUS,AMD,470,Arctic Islands,"asus_470_strixoc",Front
+ASUS,AMD,5500XT,RDNA1,"asus_5500xt_strix8gb",Front
+ASUS,AMD,5700XT,RDNA1,"asus_5700xt_tufevo",Front
+ASUS,AMD,6500XT,RDNA2,"asus_6500xt_tuf",Front
+ASUS,AMD,6750XT,RDNA2,"asus_6750xt_strixoc",Test
+ASUS,AMD,7600,RDNA3,"asus_7600_strixoc",Front
+ASUS,AMD,7900XTX,RDNA3,"asus_7900xtx_tufoc",Front
+Colorful,Nvidia,4090,Ada Lovelace,"colorful_4090_vulcan",Front
+EVGA,Nvidia,1070,Pascal,"evga_1070_sc",Front
+EVGA,Nvidia,1650,Turing,"evga_1650_superxcultra",Front
+EVGA,Nvidia,2070Super,Turing,"evga_2070S_ko",Front
+EVGA,Nvidia,3050,Ampere,"evga_3050_xc",Front
+EVGA,Nvidia,3060Ti,Ampere,"evga_3060ti_ftw3",Front
+EVGA,Nvidia,3090Ti,Ampere,"evga_3090ti_ftw3ultra",Front
+Gainward,Nvidia,1630,Turing,"gainward_1630_ghost",Front
+Gainward,Nvidia,4080,Ada Lovelace,"gainward_4080_phantomgs",Front
+Galax,Nvidia,2070Super,Turing,"galax_2070S_hof",Front
+Galax,Nvidia,4060,Ada Lovelace,"galax_4060_ex",Front
+Galax,Nvidia,4070,Ada Lovelace,"galax_4070_ex_gamer",Front
+Gigabyte,Nvidia,980Ti,Maxwell,"gigabyte_980ti_xtremegaming",Front
+Gigabyte,Nvidia,1050Ti,Pascal,"gigabyte_1050ti_g1gaming",Front
+Gigabyte,Nvidia,1080,Pascal,"gigabyte_1080_aorusxtreme",Front
+Gigabyte,Nvidia,1650,Turing,"gigabyte_1650_oc",Front
+Gigabyte,Nvidia,2080,Turing,"gigabyte_2080_gamingoc",Test
+Gigabyte,Nvidia,3050,Ampere,"gigabyte_3050_gamingoc",Front
+Gigabyte,Nvidia,3060Ti,Ampere,"gigabyte_3060ti_gamingocpro",Test
+Gigabyte,Nvidia,3090,Ampere,"gigabyte_3090_eagleoc",Front
+Gigabyte,Nvidia,4070Ti,Ada Lovelace,"gigabyte_4070ti_gamingoc",Front
+Gigabyte,AMD,580,Polaris,"gigabyte_580_aorusxtr",Front
+Gigabyte,AMD,6600,RDNA2,"gigabyte_6600_eagle",Front
+Gigabyte,AMD,6700XT,RDNA2,"gigabyte_6700xt_gamingoc",Front
+Gigabyte,AMD,6950XT,RDNA2,"gigabyte_6950xt_gamingoc",Front
+MSI,Nvidia,3080,Ampere,"msi_3080_suprimx12gb",Front
+MSI,Nvidia,4060Ti,Ada Lovelace,"msi_4060ti_gamingxtrio",Test
+MSI,Nvidia,4070,Ada Lovelace,"msi_4070_gamingxtrio",Front
+MSI,Nvidia,4070Ti,Ada Lovelace,"msi_4070ti_suprim",Front
+MSI,Nvidia,4080,Ada Lovelace,"msi_4080_gamingxtrio",Front
+MSI,Nvidia,4090,Ada Lovelace,"msi_4090_gamingxtrio",Front
+MSI,Nvidia,4090,Ada Lovelace,"msi_4090_suprimliquid",Test
+MSI,AMD,5600XT,RDNA1,"msi_5600xt_gamingx",Front
+MSI,AMD,6400,RDNA2,"msi_6400_aeroitx",Front
+MSI,AMD,6600XT,RDNA2,"msi_6600xt_gamingx",Front
+MSI,AMD,6750XT,RDNA2,"msi_6750xt_gamingxtrio",Front
+MSI,AMD,6950XT,RDNA2,"msi_6950xt_gamingxtrio",Front
+Palit,Nvidia,3050,Ampere,"palit_3050_stormx",Front
+Palit,Nvidia,4070Ti,Ada Lovelace,"palit_4070ti_gamingpro",Front
+Palit,Nvidia,4090,Ada Lovelace,"palit_4090_gamerock",Front
+PNY,Nvidia,4060Ti,Ada Lovelace,"pny_4060ti_verto",Front
+PNY,Nvidia,4070,Ada Lovelace,"pny_4070_xlr8",Front
+Powercolor,AMD,HD7850,Southern Islands,"powercolor_7850_pcsplus",Test
+Powercolor,AMD,5600XT,RDNA1,"powercolor_5600xt_reddragon",Front
+Powercolor,AMD,6600,RDNA2,"powercolor_6600_fighter",Front
+Powercolor,AMD,6800XT,RDNA2,"powercolor_6800xt_reddevil",Front
+Powercolor,AMD,7600,RDNA3,"powercolor_7600_hellhound",Front
+Sapphire,AMD,590,Polaris,"sapphire_590_nitroplus",Front
+Sapphire,AMD,6600XT,RDNA2,"sapphire_6600xt_pulse",Front
+Sapphire,AMD,6800XT,RDNA2,"sapphire_6800xt_nitroplus",Front
+Sapphire,AMD,6950XT,RDNA2,"sapphire_6950xt_nitropure",Test
+Sapphire,AMD,7600,RDNA3,"sapphire_7600_pulse",Front
+Sapphire,AMD,7900XT,RDNA3,"sapphire_7900xt_pulse",Front
+Sapphire,AMD,7900XTX,RDNA3,"sapphire_7900xtx_nitro",Front
+XFX,AMD,590,Polaris,"xfx_590_fatboy",Front
+XFX,AMD,5600XT,RDNA1,"xfx_5600xt_thicciiultra",Front
+XFX,AMD,6600XT,RDNA2,"xfx_6600xt_speedster",Front
+XFX,AMD,6800XT,RDNA2,"xfx_6800xt_speedstermerc",Front
+XFX,AMD,7900XTX,RDNA3,"xfx_7900xtx_merc",Front
+Zotac,Nvidia,1080,Pascal,"zotac_1080_mini",Front
+Zotac,Nvidia,3050,Ampere,"zotac_3050_twinedgeoc",Front
+Zotac,Nvidia,3070Ti,Ampere,"zotac_3070ti_ampextreme",Front
+Zotac,Nvidia,3080Ti,Ampere,"zotac_3080ti_ampholo",Front
+Zotac,Nvidia,4080,Ada Lovelace,"zotac_4080_amp",Front
+Zotac,Nvidia,4090,Ada Lovelace,"zotac_4090_ampextreme",Front
